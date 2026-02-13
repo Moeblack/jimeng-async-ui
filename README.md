@@ -1,6 +1,6 @@
 # Jimeng Async UI 🎨
 
-A standalone Windows 98/2000 style web UI for the `jimeng-api` asynchronous task system.
+A standalone Windows 98/2000 style web UI for the [jimeng-api](https://github.com/iptag/jimeng-api) asynchronous task system.
 
 ## ✨ Features
 - **Retro Aesthetic**: Meticulously designed using `98.css` to emulate the classic Windows 2000 look and feel.
@@ -17,7 +17,7 @@ Since it's a single HTML file with no external dependencies other than CDNs, you
 1. **Directly open `index.html`** in your browser.
 2. **Host it anywhere**: Vercel, GitHub Pages, Cloudflare Pages, or even a simple Python HTTP server.
 
-*Note: You need to set the API Base URL and Session ID (from your `jimeng-api` instance) in the "Configuration.exe" window before submitting tasks.*
+*Note: You need to set the API Base URL and Session ID (from your [jimeng-api](https://github.com/iptag/jimeng-api) instance) in the "Configuration.exe" window before submitting tasks.*
 
 ## 📸 Screenshots
 *(Add screenshots of the UI here)*
