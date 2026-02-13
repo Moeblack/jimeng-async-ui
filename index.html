@@ -475,8 +475,17 @@
                   &#127916; @video_file_{{ i+1 }}: {{ f.name }} <button @click="removeOmniVideo(i)">&times;</button>
                 </div>
               </div>
+              <div class="field-row" style="margin-top: 5px;">
+                <label>Audios (&le;3):</label>
+                <input type="file" accept="audio/*" multiple @change="onOmniAudios($event)" style="flex:1;">
+              </div>
+              <div class="file-list" v-if="videoForm.omniAudios.length">
+                <div v-for="(f, i) in videoForm.omniAudios" :key="i" class="file-tag">
+                  &#128266; @audio_file_{{ i+1 }}: {{ f.name }} <button @click="removeOmniAudios(i)">&times;</button>
+                </div>
+              </div>
               <p style="font-size:10px; color:#808080; margin-top:5px; margin-bottom: 2px;">
-                💡 Tip: Use @image_file_1, @video_file_1, etc. in your prompt to reference materials.
+                💡 Tip: Use @image_file_1, @video_file_1, @audio_file_1, etc. in your prompt to reference materials.
               </p>
             </div>
           </fieldset>
@@ -536,6 +545,16 @@
               <p style="margin: 2px 0;" v-if="selectedTaskObj.error">
                 <strong>Error:</strong> <span class="error-text">{{ selectedTaskObj.error }}</span>
               </p>
+              <div v-if="selectedRefFiles && selectedRefFiles.length" style="margin-top: 6px;">
+                <strong>References:</strong>
+                <div class="file-list" style="margin-top: 3px;">
+                  <div v-for="rf in selectedRefFiles" :key="rf.fieldName" class="file-tag">
+                    {{ rf.type.startsWith('image') ? '&#128444;&#65039;' : rf.type.startsWith('video') ? '&#127916;' : '&#128266;' }}
+                    {{ rf.fieldName }}: {{ rf.name }}
+                    <button v-if="rf.previewUrl" @click="openRefPreview(rf.previewUrl)" title="Preview">&#128065;</button>
+                  </div>
+                </div>
+              </div>
               <div style="margin-top: 5px; display: flex; gap: 5px;" v-if="selectedTaskObj.status === 'completed'">
                 <button @click="viewResult(selectedTaskObj)">View Result</button>
                 <button @click="deleteTask(selectedTaskObj.task_id)" style="color: #800000;">Delete Record</button>
@@ -628,8 +647,9 @@
     // ===== IndexedDB Media Cache =====
     const MediaCache = (() => {
       const DB_NAME = 'jm_media_cache';
-      const DB_VERSION = 1;
+      const DB_VERSION = 2;
       const STORE_NAME = 'blobs';
+      const REF_STORE_NAME = 'ref_media';
 
       function openDB() {
         return new Promise((resolve, reject) => {
@@ -638,6 +658,9 @@
             const db = e.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
               db.createObjectStore(STORE_NAME, { keyPath: 'url' });
+            }
+            if (!db.objectStoreNames.contains(REF_STORE_NAME)) {
+              db.createObjectStore(REF_STORE_NAME, { keyPath: 'key' });
             }
           };
           req.onsuccess = () => resolve(req.result);
@@ -680,6 +703,43 @@
           } catch (e) {
             console.warn('MediaCache: failed to cache', url, e);
           }
+        },
+        async putRef(taskId, files) {
+          try {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+              const tx = db.transaction(REF_STORE_NAME, 'readwrite');
+              tx.objectStore(REF_STORE_NAME).put({
+                key: taskId,
+                files: files,
+                cachedAt: Date.now()
+              });
+              tx.oncomplete = () => resolve();
+              tx.onerror = () => reject(tx.error);
+            });
+          } catch (e) {
+            console.warn('Failed to put ref to cache', e);
+          }
+        },
+        async getRef(taskId) {
+          try {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+              const tx = db.transaction(REF_STORE_NAME, 'readonly');
+              const req = tx.objectStore(REF_STORE_NAME).get(taskId);
+              req.onsuccess = () => resolve(req.result);
+              req.onerror = () => reject(req.error);
+            });
+          } catch (e) {
+            return null;
+          }
+        },
+        async removeRef(taskId) {
+          try {
+            const db = await openDB();
+            const tx = db.transaction(REF_STORE_NAME, 'readwrite');
+            tx.objectStore(REF_STORE_NAME).delete(taskId);
+          } catch (e) {}
         },
         async remove(url) {
           const db = await openDB();
@@ -728,13 +788,15 @@
           functionMode: 'first_last_frames',
           standardFiles: [],
           omniImages: [],
-          omniVideos: []
+          omniVideos: [],
+          omniAudios: []
         });
 
         // Tasks
         const tasks = ref(JSON.parse(localStorage.getItem('jm_local_tasks') || '[]'));
         const stats = ref({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
         const selectedTaskId = ref(null);
+        const selectedRefFiles = ref([]);
         
         // Modal
         const resultModal = reactive({
@@ -794,6 +856,18 @@
         };
         const removeOmniVideo = (i) => videoForm.omniVideos.splice(i, 1);
 
+        const onOmniAudios = (e) => {
+          const files = Array.from(e.target.files);
+          const maxFiles = 3 - videoForm.omniAudios.length;
+          const validFiles = files.slice(0, Math.max(0, maxFiles)).filter(f => {
+            if (f.size > 15 * 1024 * 1024) { showError(`Audio file "${f.name}" exceeds 15MB limit.`); return false; }
+            return true;
+          });
+          videoForm.omniAudios.push(...validFiles);
+          e.target.value = '';
+        };
+        const removeOmniAudios = (i) => videoForm.omniAudios.splice(i, 1);
+
         // Methods
         const submitImageTask = async () => {
           if (!isConfigValid.value) return showError('Please configure API URL and Session Token first.');
@@ -820,7 +894,7 @@
           try {
             const api = getApi();
             let res;
-            const hasFiles = videoForm.standardFiles.length > 0 || videoForm.omniImages.length > 0 || videoForm.omniVideos.length > 0;
+            const hasFiles = videoForm.standardFiles.length > 0 || videoForm.omniImages.length > 0 || videoForm.omniVideos.length > 0 || videoForm.omniAudios.length > 0;
 
             if (hasFiles) {
               const fd = new FormData();
@@ -835,6 +909,7 @@
               } else {
                 videoForm.omniImages.forEach((f, i) => fd.append(`image_file_${i+1}`, f));
                 videoForm.omniVideos.forEach((f, i) => fd.append(`video_file_${i+1}`, f));
+                videoForm.omniAudios.forEach((f, i) => fd.append(`audio_file_${i+1}`, f));
               }
 
               res = await api.post('/v1/async/videos/generations', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -925,6 +1000,7 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
               if (item.url) MediaCache.remove(item.url);
             });
           }
+          MediaCache.removeRef(taskId);
           tasks.value = tasks.value.filter(t => t.task_id !== taskId);
           if (selectedTaskId.value === taskId) {
             selectedTaskId.value = null;
@@ -1131,13 +1207,28 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
         const creditInfo = ref(null);
         const creditLoading = ref(false);
 
+        watch(() => selectedTaskId.value, async (taskId) => {
+          revokeRefUrls();
+          if (!taskId) { selectedRefFiles.value = []; return; }
+          const refs = await MediaCache.getRef(taskId);
+          if (refs) {
+            selectedRefFiles.value = refs.files.map(f => ({
+              ...f,
+              previewUrl: f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/') 
+                ? URL.createObjectURL(f.blob) : null
+            }));
+          } else {
+            selectedRefFiles.value = [];
+          }
+        });
+
         return {
           config, isConfigValid, activeTab, imageForm, videoForm,
-          tasks, stats, selectedTaskId, selectedTaskObj,
+          tasks, stats, selectedTaskId, selectedRefFiles, selectedTaskObj,
           resultModal, errorMsg, submitting, fetching, isPolling,
           submitImageTask, submitVideoTask, fetchTasks, togglePolling, viewResult, queryCredits, creditInfo, creditLoading,
-          onStandardFiles, removeStandardFile, onOmniImages, removeOmniImage, onOmniVideos, removeOmniVideo,
-          copyUrl, openOriginal, formatTime, formatDate, formatType, getTaskPrompt, getElapsed, getFakeProgress, deleteTask,
+          onStandardFiles, removeStandardFile, onOmniImages, removeOmniImage, onOmniVideos, removeOmniVideo, onOmniAudios, removeOmniAudios,
+          copyUrl, openOriginal, formatTime, openRefPreview, formatDate, formatType, getTaskPrompt, getElapsed, getFakeProgress, deleteTask,
           loadingProgress, onMediaLoaded
         };
       }
