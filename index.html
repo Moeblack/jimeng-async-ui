@@ -447,6 +447,7 @@
             <div v-if="videoForm.functionMode === 'first_last_frames'">
               <div class="field-row">
                 <label>Images (&le;2):</label>
+                <span style="flex:1;"></span>
                 <button @click="$refs.stdImgInput.click()">Browse...</button>
                 <input type="file" ref="stdImgInput" accept="image/*" multiple @change="onStandardFiles($event)" style="display:none;">
               </div>
@@ -460,6 +461,7 @@
             <div v-if="videoForm.functionMode === 'omni_reference'">
               <div class="field-row">
                 <label>Images (&le;9):</label>
+                <span style="flex:1;"></span>
                 <button @click="$refs.omniImgInput.click()">Browse...</button>
                 <input type="file" ref="omniImgInput" accept="image/*" multiple @change="onOmniImages($event)" style="display:none;">
               </div>
@@ -470,6 +472,7 @@
               </div>
               <div class="field-row" style="margin-top: 5px;">
                 <label>Videos (&le;3):</label>
+                <span style="flex:1;"></span>
                 <button @click="$refs.omniVidInput.click()">Browse...</button>
                 <input type="file" ref="omniVidInput" accept="video/*" multiple @change="onOmniVideos($event)" style="display:none;">
               </div>
@@ -480,6 +483,7 @@
               </div>
               <div class="field-row" style="margin-top: 5px;">
                 <label>Audios (&le;3):</label>
+                <span style="flex:1;"></span>
                 <button @click="$refs.omniAudInput.click()">Browse...</button>
                 <input type="file" ref="omniAudInput" accept="audio/*" multiple @change="onOmniAudios($event)" style="display:none;">
               </div>
