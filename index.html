@@ -289,17 +289,135 @@
       background: #000080;
     }
     .file-list {
-      display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;
+      background: #fff; border: 2px inset #dfdfdf; padding: 2px;
+      display: flex; flex-direction: column; gap: 0;
+      max-height: 150px; overflow-y: auto; margin-top: 4px;
     }
     .file-tag {
-      display: inline-flex; align-items: center; gap: 3px;
-      background: #fff; border: 1px solid #808080;
-      padding: 2px 6px; font-size: 11px;
+      display: flex; align-items: center; gap: 5px;
+      padding: 2px 4px; font-size: 11px; color: #000;
     }
-    .file-tag button {
-      background: none; border: none; cursor: pointer;
-      color: #800000; font-weight: bold; padding: 0 2px;
-      font-size: 12px; min-width: auto; line-height: 1;
+    .file-tag:hover, .file-tag.insertable:hover { background: #000080; color: #fff; }
+    .file-tag .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .file-tag .tag-actions { display: flex; gap: 2px; }
+    .file-tag .tag-actions button {
+      background: #c0c0c0; border: 2px outset #fff; color: #000;
+      font-size: 10px; min-width: 20px; height: 18px; padding: 0 2px; cursor: pointer; font-weight: normal; line-height: 1;
+    }
+    .file-tag .tag-actions button:active { border-style: inset; }
+
+    /* === Prompt Rich Editor === */
+    .prompt-editor-wrapper {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    .prompt-editor {
+      border: 2px inset #fff;
+      background: white;
+      min-height: 60px;
+      max-height: 120px;
+      padding: 4px;
+      font-family: 'Pixelated MS Sans Serif', Arial;
+      font-size: 11px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      cursor: text;
+      outline: none;
+    }
+    .prompt-editor:empty::before {
+      content: attr(data-placeholder);
+      color: #808080;
+      pointer-events: none;
+    }
+    .ref-tag {
+      display: inline-block;
+      background: #c0c0c0;
+      border: 2px outset #fff;
+      padding: 1px 4px;
+      margin: 1px 2px;
+      font-size: 10px;
+      cursor: pointer;
+      user-select: all;
+      vertical-align: baseline;
+      white-space: nowrap;
+      color: #000;
+    }
+    .ref-tag:hover { background: #dfdfdf; }
+    .ref-tag:active { border-style: inset; }
+    .ref-tag[data-type="image"] { color: #008000; font-weight: bold; }
+    .ref-tag[data-type="video"] { color: #000080; font-weight: bold; }
+    .ref-tag[data-type="audio"] { color: #800000; font-weight: bold; }
+
+    /* @ Dropdown */
+    .ref-dropdown {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 100%;
+      max-height: 160px;
+      overflow-y: auto;
+      background: white;
+      border: 2px outset #dfdfdf;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+      z-index: 50;
+    }
+    .ref-dropdown-item {
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ref-dropdown-item:hover,
+    .ref-dropdown-item.active {
+      background: #000080;
+      color: white;
+    }
+    .ref-dropdown-empty {
+      padding: 6px 8px;
+      font-size: 11px;
+      color: #808080;
+      font-style: italic;
+    }
+
+    /* Reference Preview Modal */
+    .ref-preview-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+    .ref-preview-window {
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+    }
+    .ref-preview-body {
+      padding: 8px;
+      text-align: center;
+    }
+    .ref-preview-body img,
+    .ref-preview-body video {
+      max-width: 100%;
+      max-height: 50vh;
+      border: 2px inset;
+      background: #000;
+      object-fit: contain;
+    }
+    .ref-preview-body audio {
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    /* 文件列表标签可点击插入 */
+    .file-tag.insertable {
+      cursor: pointer;
     }
   </style>
 </head>
@@ -401,7 +519,10 @@
             </div>
             <div class="file-list" v-if="imageForm.refImages.length">
               <div v-for="(f, i) in imageForm.refImages" :key="i" class="file-tag">
-                &#128444;&#65039; {{ f.name }} <button @click="removeImageRef(i)">&times;</button>
+                <span class="file-name">&#128444;&#65039; {{ f.name }}</span>
+                <div class="tag-actions">
+                  <button @click.prevent="removeImageRef(i)">&times;</button>
+                </div>
               </div>
             </div>
             <p style="font-size:10px; color:#808080; margin-top:5px; margin-bottom: 2px;">
@@ -470,7 +591,10 @@
               </div>
               <div class="file-list" v-if="videoForm.standardFiles.length">
                 <div v-for="(f, i) in videoForm.standardFiles" :key="i" class="file-tag">
-                  &#128444;&#65039; {{ f.name }} <button @click="removeStandardFile(i)">&times;</button>
+                  <span class="file-name">&#128444;&#65039; {{ f.name }}</span>
+                  <div class="tag-actions">
+                    <button @click.prevent="removeStandardFile(i)">&times;</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -483,8 +607,12 @@
                 <input type="file" ref="omniImgInput" accept="image/*" multiple @change="onOmniImages($event)" style="display:none;">
               </div>
               <div class="file-list" v-if="videoForm.omniImages.length">
-                <div v-for="(f, i) in videoForm.omniImages" :key="i" class="file-tag">
-                  &#128444;&#65039; @image_file_{{ i+1 }}: {{ f.name }} <button @click="removeOmniImage(i)">&times;</button>
+                <div v-for="(f, i) in videoForm.omniImages" :key="i" class="file-tag insertable" @click="insertRefToEditor('image_file_' + (i+1))" title="Click to insert @reference">
+                  <span class="file-name">&#128444;&#65039; @image_file_{{ i+1 }}: {{ f.name }}</span>
+                  <div class="tag-actions">
+                    <button @click.stop="previewLocalFile(f)" title="Preview">👁</button>
+                    <button @click.stop="removeOmniImage(i)">&times;</button>
+                  </div>
                 </div>
               </div>
               <div class="field-row" style="margin-top: 5px;">
@@ -494,8 +622,12 @@
                 <input type="file" ref="omniVidInput" accept="video/*" multiple @change="onOmniVideos($event)" style="display:none;">
               </div>
               <div class="file-list" v-if="videoForm.omniVideos.length">
-                <div v-for="(f, i) in videoForm.omniVideos" :key="i" class="file-tag">
-                  &#127916; @video_file_{{ i+1 }}: {{ f.name }} <button @click="removeOmniVideo(i)">&times;</button>
+                <div v-for="(f, i) in videoForm.omniVideos" :key="i" class="file-tag insertable" @click="insertRefToEditor('video_file_' + (i+1))" title="Click to insert @reference">
+                  <span class="file-name">&#127916; @video_file_{{ i+1 }}: {{ f.name }}</span>
+                  <div class="tag-actions">
+                    <button @click.stop="previewLocalFile(f)" title="Preview">👁</button>
+                    <button @click.stop="removeOmniVideo(i)">&times;</button>
+                  </div>
                 </div>
               </div>
               <div class="field-row" style="margin-top: 5px;">
@@ -505,21 +637,51 @@
                 <input type="file" ref="omniAudInput" accept="audio/*" multiple @change="onOmniAudios($event)" style="display:none;">
               </div>
               <div class="file-list" v-if="videoForm.omniAudios.length">
-                <div v-for="(f, i) in videoForm.omniAudios" :key="i" class="file-tag">
-                  &#128266; @audio_file_{{ i+1 }}: {{ f.name }} <button @click="removeOmniAudios(i)">&times;</button>
+                <div v-for="(f, i) in videoForm.omniAudios" :key="i" class="file-tag insertable" @click="insertRefToEditor('audio_file_' + (i+1))" title="Click to insert @reference">
+                  <span class="file-name">&#128266; @audio_file_{{ i+1 }}: {{ f.name }}</span>
+                  <div class="tag-actions">
+                    <button @click.stop="previewLocalFile(f)" title="Preview">👁</button>
+                    <button @click.stop="removeOmniAudios(i)">&times;</button>
+                  </div>
                 </div>
               </div>
               <p style="font-size:10px; color:#808080; margin-top:5px; margin-bottom: 2px;">
-                💡 Tip: Use @image_file_1, @video_file_1, @audio_file_1, etc. in your prompt to reference materials.
+                💡 Click a file tag or type <b>@</b> in prompt to insert reference.
               </p>
             </div>
           </fieldset>
 
           <div class="field-row" style="align-items: flex-start;">
             <label>Prompt:</label>
-            <textarea v-model="videoForm.prompt" placeholder="Enter video description..."></textarea>
+            <!-- Omni mode: Rich prompt editor -->
+            <div v-if="videoForm.functionMode === 'omni_reference'" class="prompt-editor-wrapper">
+              <div ref="promptEditor" 
+                   class="prompt-editor" 
+                   contenteditable="true"
+                   data-placeholder="Type text, use @ to insert references..."
+                   @input="onEditorInput"
+                   @keydown="onEditorKeydown"
+                   @click="onEditorClick"
+                   @paste="onEditorPaste"></div>
+              <!-- @ Autocomplete dropdown -->
+              <div class="ref-dropdown" v-if="showRefDropdown">
+                <div v-if="filteredMaterials.length === 0" class="ref-dropdown-empty">
+                  No materials uploaded yet.
+                </div>
+                <div v-for="(item, idx) in filteredMaterials" 
+                     :key="item.field"
+                     class="ref-dropdown-item"
+                     :class="{ active: refDropdownIndex === idx }"
+ @mousedown.prevent="insertRefFromDropdown(item)">
+                  {{ item.icon }} {{ item.field }}: {{ item.displayName }}
+                </div>
+              </div>
+            </div>
+            <!-- Other modes: plain textarea -->
+            <textarea v-else v-model="videoForm.prompt" placeholder="Enter video description..."></textarea>
           </div>
-          <button class="btn-block" @click="submitVideoTask" :disabled="!isConfigValid || !videoForm.prompt || submitting">
+          <button class="btn-block" @click="submitVideoTask" 
+            :disabled="!isConfigValid || (videoForm.functionMode === 'omni_reference' ? !editorHasContent : !videoForm.prompt) || submitting">
             {{ submitting ? 'Submitting...' : 'Generate Video' }}
           </button>
         </article>
@@ -574,14 +736,18 @@
                 <strong>References:</strong>
                 <div class="file-list" style="margin-top: 3px;">
                   <div v-for="rf in selectedRefFiles" :key="rf.fieldName" class="file-tag">
-                    {{ rf.type.startsWith('image') ? '&#128444;&#65039;' : rf.type.startsWith('video') ? '&#127916;' : '&#128266;' }}
-                    {{ rf.fieldName }}: {{ rf.name }}
-                    <button v-if="rf.previewUrl" @click="openRefPreview(rf.previewUrl)" title="Preview">&#128065;</button>
+                    <span class="file-name">
+                      {{ rf.type.startsWith('image') ? '&#128444;&#65039;' : rf.type.startsWith('video') ? '&#127916;' : '&#128266;' }}
+                      {{ rf.fieldName }}: {{ rf.name }}
+                    </span>
+                    <div class="tag-actions">
+                      <button v-if="rf.previewUrl" @click="openRefPreview(rf.previewUrl, rf.name, rf.type.startsWith('image') ? 'image' : rf.type.startsWith('video') ? 'video' : 'audio')" title="Preview">👁</button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div style="margin-top: 5px; display: flex; gap: 5px;" v-if="selectedTaskObj.status === 'completed'">
-                <button @click="viewResult(selectedTaskObj)">View Result</button>
+              <div style="margin-top: 5px; display: flex; gap: 5px;">
+                <button v-if="selectedTaskObj.status === 'completed'" @click="viewResult(selectedTaskObj)">View Result</button>
                 <button @click="deleteTask(selectedTaskObj.task_id)" style="color: #800000;">Delete Record</button>
               </div>
             </div>
@@ -595,6 +761,24 @@
             <span>| <span class="status-failed">Failed:</span> {{ stats.failed }}</span>
           </div>
         </article>
+      </div>
+    </div>
+
+    <!-- Reference Preview Modal -->
+    <div class="ref-preview-overlay" v-if="refPreview.show" @click.self="closeRefPreview">
+      <div class="window ref-preview-window">
+        <div class="title-bar">
+          <div class="title-bar-text">📎 Preview - {{ refPreview.name }}</div>
+          <div class="title-bar-controls">
+            <button aria-label="Close" @click="closeRefPreview"></button>
+          </div>
+        </div>
+        <div class="window-body ref-preview-body">
+          <img v-if="refPreview.mediaType === 'image'" :src="refPreview.url">
+          <video v-else-if="refPreview.mediaType === 'video'" :src="refPreview.url" controls autoplay></video>
+          <audio v-else-if="refPreview.mediaType === 'audio'" :src="refPreview.url" controls autoplay></audio>
+          <p v-else style="color: #808080;">Preview not available</p>
+        </div>
       </div>
     </div>
 
@@ -823,6 +1007,21 @@
         const stats = ref({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
         const selectedTaskId = ref(null);
         const selectedRefFiles = ref([]);
+        // Rich editor state
+        const showRefDropdown = ref(false);
+        const refDropdownIndex = ref(0);
+        const refFilterText = ref('');
+        const editorHasContent = ref(false);
+        const promptEditor = ref(null);
+
+        // Preview state
+        const refPreview = reactive({
+          show: false,
+          url: '',
+          name: '',
+          mediaType: '' // 'image' | 'video' | 'audio'
+        });
+
         
         // Modal
         const resultModal = reactive({
@@ -833,6 +1032,29 @@
           _originalUrls: [],
           currentIndex: 0,
           loading: false
+        });
+
+        const availableMaterials = computed(() => {
+          const list = [];
+          videoForm.omniImages.forEach((f, i) => {
+            list.push({ field: `image_file_${i+1}`, type: 'image', icon: '🖼️', displayName: f.name, file: f });
+          });
+          videoForm.omniVideos.forEach((f, i) => {
+            list.push({ field: `video_file_${i+1}`, type: 'video', icon: '🎬', displayName: f.name, file: f });
+          });
+          videoForm.omniAudios.forEach((f, i) => {
+            list.push({ field: `audio_file_${i+1}`, type: 'audio', icon: '🔊', displayName: f.name, file: f });
+          });
+          return list;
+        });
+
+        const filteredMaterials = computed(() => {
+          const filter = refFilterText.value.toLowerCase();
+          if (!filter) return availableMaterials.value;
+          return availableMaterials.value.filter(m => 
+            m.field.toLowerCase().includes(filter) || 
+            m.displayName.toLowerCase().includes(filter)
+          );
         });
 
         // Computed
@@ -901,6 +1123,185 @@
         };
         const removeOmniAudios = (i) => videoForm.omniAudios.splice(i, 1);
 
+        // Rich Editor Methods
+        function createRefTagHTML(field, type, icon) {
+          return `<span contenteditable="false" class="ref-tag" data-field="${field}" data-type="${type}">${icon} @${field}</span>\u200B`;
+        }
+
+        function extractPromptFromEditor() {
+          const editor = promptEditor.value;
+          if (!editor) return '';
+          let result = '';
+          function walk(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+              result += node.textContent.replace(/\u200B/g, '');
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.classList?.contains('ref-tag')) {
+                result += '@' + node.getAttribute('data-field');
+              } else if (node.tagName === 'BR') {
+                result += '\n';
+              } else {
+                node.childNodes.forEach(walk);
+              }
+            }
+          }
+          editor.childNodes.forEach(walk);
+          return result.trim();
+        }
+
+        function syncEditorToPrompt() {
+          videoForm.prompt = extractPromptFromEditor();
+          editorHasContent.value = videoForm.prompt.length > 0;
+        }
+
+        function onEditorInput(e) {
+          syncEditorToPrompt();
+          detectAtSymbol();
+        }
+
+        function detectAtSymbol() {
+          const sel = window.getSelection();
+          if (!sel.rangeCount) { showRefDropdown.value = false; return; }
+          const range = sel.getRangeAt(0);
+          const node = range.startContainer;
+          if (node.nodeType !== Node.TEXT_NODE) { showRefDropdown.value = false; return; }
+          
+          const text = node.textContent.substring(0, range.startOffset);
+          const atIdx = text.lastIndexOf('@');
+          if (atIdx === -1) { showRefDropdown.value = false; return; }
+          
+          const filterStr = text.substring(atIdx + 1);
+          if (/\s/.test(filterStr)) { showRefDropdown.value = false; return; }
+          
+          refFilterText.value = filterStr;
+          refDropdownIndex.value = 0;
+          showRefDropdown.value = true;
+        }
+
+        function onEditorKeydown(e) {
+          if (showRefDropdown.value) {
+            const items = filteredMaterials.value;
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              refDropdownIndex.value = Math.min(refDropdownIndex.value + 1, items.length - 1);
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              refDropdownIndex.value = Math.max(refDropdownIndex.value - 1, 0);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+              e.preventDefault();
+              if (items.length > 0) {
+                insertRefFromDropdown(items[refDropdownIndex.value]);
+              }
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              showRefDropdown.value = false;
+            }
+          }
+        }
+
+        function insertRefFromDropdown(item) {
+          showRefDropdown.value = false;
+          const sel = window.getSelection();
+          if (!sel.rangeCount) return;
+          
+          const range = sel.getRangeAt(0);
+          const node = range.startContainer;
+          if (node.nodeType !== Node.TEXT_NODE) return;
+          
+          const text = node.textContent;
+          const cursorPos = range.startOffset;
+          const atIdx = text.lastIndexOf('@', cursorPos - 1);
+          if (atIdx === -1) return;
+          
+          const before = text.substring(0, atIdx);
+          const after = text.substring(cursorPos);
+          node.textContent = before;
+          
+          const tagSpan = document.createElement('span');
+          tagSpan.contentEditable = 'false';
+          tagSpan.className = 'ref-tag';
+  tagSpan.dataset.field = item.field;
+          tagSpan.dataset.type = item.type;
+          tagSpan.textContent = `${item.icon} @${item.field}`;
+          
+          const afterNode = document.createTextNode('\u200B' + after);
+          const parent = node.parentNode;
+          parent.insertBefore(tagSpan, node.nextSibling);
+          parent.insertBefore(afterNode, tagSpan.nextSibling);
+          
+          const newRange = document.createRange();
+          newRange.setStart(afterNode, 1);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          
+          syncEditorToPrompt();
+        }
+
+        function insertRefToEditor(fieldName) {
+          const item = availableMaterials.value.find(m => m.field === fieldName);
+          if (!item) return;
+          
+          const editor = promptEditor.value;
+          if (!editor) return;
+          
+          const tagHTML = createRefTagHTML(item.field, item.type, item.icon);
+          editor.innerHTML += tagHTML;
+          
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          
+          editor.focus();
+          syncEditorToPrompt();
+        }
+
+        function onEditorClick(e) {
+          const tag = e.target.closest?.('.ref-tag');
+          if (tag) {
+            const fieldName = tag.dataset.field;
+            const item = availableMaterials.value.find(m => m.field === fieldName);
+            if (item?.file) {
+              showFilePreview(item.file, item.type, item.displayName);
+            }
+          }
+        }
+
+        function onEditorPaste(e) {
+          e.preventDefault();
+          const text = e.clipboardData.getData('text/plain');
+          document.execCommand('insertText', false, text);
+        }
+
+        // Preview Methods
+        function showFilePreview(file, type, name) {
+          if (refPreview.url && refPreview.url.startsWith('blob:')) {
+            URL.revokeObjectURL(refPreview.url);
+          }
+          refPreview.url = URL.createObjectURL(file);
+          refPreview.name = name || file.name;
+          refPreview.mediaType = type;
+          refPreview.show = true;
+        }
+
+        function closeRefPreview() {
+          if (refPreview.url && refPreview.url.startsWith('blob:')) {
+            URL.revokeObjectURL(refPreview.url);
+          }
+          refPreview.show = false;
+          refPreview.url = '';
+        }
+
+        function previewLocalFile(file) {
+          let type = 'image';
+          if (file.type.startsWith('video/')) type = 'video';
+          else if (file.type.startsWith('audio/')) type = 'audio';
+          showFilePreview(file, type, file.name);
+        }
+
         // Methods
         const submitImageTask = async () => {
           if (!isConfigValid.value) return showError('Please configure API URL and Session Token first.');
@@ -944,6 +1345,9 @@
 
         const submitVideoTask = async () => {
           if (!isConfigValid.value) return showError('Please configure API URL and Session Token first.');
+          if (videoForm.functionMode === 'omni_reference') {
+            syncEditorToPrompt(); // Ensure prompt is up to date
+          }
           submitting.value = true;
           try {
             const api = getApi();
@@ -973,6 +1377,23 @@
             }
             
             if (res.data && res.data.task_id) {
+              if (hasFiles) {
+                 let refFiles = [];
+                 if (videoForm.functionMode === 'first_last_frames') {
+                     refFiles = videoForm.standardFiles.map((f, i) => ({ name: f.name, type: f.type, fieldName: `image_${i+1}`, blob: f }));
+                 } else {
+                     videoForm.omniImages.forEach((f, i) => refFiles.push({ name: f.name, type: f.type, fieldName: `image_file_${i+1}`, blob: f }));
+                     videoForm.omniVideos.forEach((f, i) => refFiles.push({ name: f.name, type: f.type, fieldName: `video_file_${i+1}`, blob: f }));
+                     videoForm.omniAudios.forEach((f, i) => refFiles.push({ name: f.name, type: f.type, fieldName: `audio_file_${i+1}`, blob: f }));
+                 }
+                 MediaCache.putRef(res.data.task_id, refFiles).catch(e => console.error(e));
+                 videoForm.standardFiles = [];
+                 videoForm.omniImages = [];
+                 videoForm.omniVideos = [];
+                 videoForm.omniAudios = [];
+                 if (promptEditor.value) { promptEditor.value.innerHTML = ''; syncEditorToPrompt(); }
+                 videoForm.prompt = '';
+              }
               activeTab.value = 'tasks';
               fetchTasks();
               if (!isPolling.value) togglePolling();
@@ -1151,8 +1572,14 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
           window.open(url, '_blank');
         };
 
-        const openRefPreview = (url) => {
-          window.open(url, '_blank');
+        const openRefPreview = (url, name, type) => {
+          if (refPreview.url && refPreview.url.startsWith('blob:')) {
+            URL.revokeObjectURL(refPreview.url);
+          }
+          refPreview.url = url;
+          refPreview.name = name || 'Reference';
+          refPreview.mediaType = type || 'image';
+          refPreview.show = true;
         };
 
         const revokeRefUrls = () => {
@@ -1260,10 +1687,30 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
           }
         });
 
-        watch(() => videoForm.functionMode, () => {
+        watch(() => videoForm.functionMode, (newMode) => {
           videoForm.standardFiles = [];
           videoForm.omniImages = [];
           videoForm.omniVideos = [];
+          if (newMode === 'omni_reference') {
+            Vue.nextTick(() => {
+              if (promptEditor.value && videoForm.prompt) {
+                promptEditor.value.textContent = videoForm.prompt;
+                syncEditorToPrompt();
+              }
+            });
+          }
+        });
+
+        watch([() => videoForm.omniImages.length, () => videoForm.omniVideos.length, () => videoForm.omniAudios.length], () => {
+          if (!promptEditor.value) return;
+          const validFields = new Set(availableMaterials.value.map(m => m.field));
+          const tags = promptEditor.value.querySelectorAll('.ref-tag');
+          tags.forEach(tag => {
+            if (!validFields.has(tag.dataset.field)) {
+              tag.parentNode?.removeChild(tag);
+            }
+          });
+          syncEditorToPrompt();
         });
 
         // Credits
@@ -1292,7 +1739,10 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
           submitImageTask, submitVideoTask, fetchTasks, togglePolling, viewResult, queryCredits, creditInfo, creditLoading,
           onImageRefFiles, removeImageRef, onStandardFiles, removeStandardFile, onOmniImages, removeOmniImage, onOmniVideos, removeOmniVideo, onOmniAudios, removeOmniAudios,
           copyUrl, openOriginal, formatTime, openRefPreview, formatDate, formatType, getTaskPrompt, getElapsed, getFakeProgress, deleteTask,
-          loadingProgress, onMediaLoaded
+          loadingProgress, onMediaLoaded,
+          promptEditor, showRefDropdown, refDropdownIndex, filteredMaterials, editorHasContent, refPreview,
+          onEditorInput, onEditorKeydown, onEditorClick, onEditorPaste,
+          insertRefFromDropdown, insertRefToEditor, previewLocalFile, closeRefPreview, showFilePreview
         };
       }
     }).mount('#app');
