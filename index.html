@@ -1097,6 +1097,15 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
           window.open(url, '_blank');
         };
 
+        const openRefPreview = (url) => {
+          window.open(url, '_blank');
+        };
+
+        const revokeRefUrls = () => {
+          selectedRefFiles.value.forEach(rf => { if (rf.previewUrl) URL.revokeObjectURL(rf.previewUrl); });
+        };
+
+
         const formatTime = (timestamp) => {
           if (!timestamp) return '';
           const date = new Date(timestamp * 1000);
