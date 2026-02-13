@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jimeng API - Async Console</title>
+  
+  <!-- 98.css for Windows 98/2000 style UI -->
+  <link rel="stylesheet" href="https://unpkg.com/98.css">
+  
+  <!-- Vue 3 & Axios via CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <style>
+    body {
+      background-color: #008080;
+      font-family: 'Pixelated MS Sans Serif', Arial;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .window {
+      width: 100%;
+    }
+
+    .window-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 8px;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .field-row > label {
+      min-width: 90px;
+      margin-bottom: 0;
+    }
+
+    .field-row > input[type="text"], 
+    .field-row > input[type="number"], 
+    .field-row > select,
+    .field-row > textarea {
+      flex: 1;
+      min-width: 200px;
+      box-sizing: border-box;
+    }
+
+    .field-row > textarea {
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    /* Tabs styling adjustment */
+    menu[role="tablist"] {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 0;
+    }
+    
+    menu[role="tablist"] > li {
+      flex: 1;
+      text-align: center;
+      min-width: 100px;
+      margin-bottom: -2px;
+      z-index: 1;
+    }
+
+    menu[role="tablist"] > li[aria-selected="true"] {
+      z-index: 3;
+    }
+
+    .tab-content {
+      background: #c0c0c0;
+      padding: 15px;
+      border: 1px solid #fff;
+      border-right-color: #888;
+      border-bottom-color: #888;
+      box-shadow: inset 1px 1px #dfdfdf, inset -1px -1px #0a0a0a;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Task list styling */
+    .task-list {
+      background: white;
+      border: inset 2px;
+      height: 300px;
+      overflow-y: auto;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .task-item {
+      padding: 6px;
+      border-bottom: 1px dashed #ccc;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .task-item:hover {
+      background-color: #e0e0e0;
+    }
+
+    .task-item.selected {
+      background-color: #000080;
+      color: white;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .task-info {
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    /* Status colors */
+    .status-pending { color: #808080; }
+    .status-processing { color: #0000ff; }
+    .status-completed { color: #008000; }
+    .status-failed { color: #ff0000; }
+    
+    .task-item.selected .status-pending,
+    .task-item.selected .status-processing,
+    .task-item.selected .status-completed,
+.task-item.selected .status-failed {
+      color: white;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 15px;
+      border: inset 2px;
+      background: #c0c0c0;
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: #000080;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      line-height: 11px;
+      color: white;
+      mix-blend-mode: difference;
+    }
+
+    .action-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn-block {
+      width: 100%;
+      padding: 8px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 10px;
+    }
+
+    .modal-window {
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff;
+      background: #c0c0c0;
+      padding: 3px;
+    }
+
+    .modal-body {
+      overflow-y: auto;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .preview-media {
+      max-width: 100%;
+      max-height: 50vh;
+      border: inset 2px;
+      background: #000;
+      object-fit: contain;
+    }
+
+    .error-text {
+      color: red;
+      font-weight: bold;
+      word-break: break-all;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+      .field-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .field-row > label {
+        margin-bottom: 2px;
+      }
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #c0c0c0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .win-progress-bar {
+      width: 200px;
+      height: 20px;
+      border-top: 1px solid #808080; border-left: 1px solid #808080; border-right: 1px solid #fff; border-bottom: 1px solid #fff;
+      background: #fff; padding: 2px; display: flex; gap: 2px;
+    }
+    .win-progress-chunk {
+      width: 10px; height: 100%;
+      background: #000080;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <!-- Config Window -->
+    <div class="window">
+      <div class="title-bar">
+        <div class="title-bar-text">⚙️ Configuration.exe</div>
+      </div>
+      <div class="window-body">
+        <div class="field-row">
+          <label for="apiUrl">API Base URL:</label>
+          <input id="apiUrl" type="text" v-model="config.apiUrl" placeholder="http://localhost:5100">
+        </div>
+        <div class="field-row">
+          <label for="sessionToken">Session ID:</label>
+          <input id="sessionToken" type="text" v-model="config.sessionToken" placeholder="[ProxyURL@][RegionPrefix-]session_id">
+        </div>
+        <div class="field-row">
+          <label for="pollInterval">Poll (sec):</label>
+          <select id="pollInterval" v-model.number="config.pollInterval" style="min-width: 80px; flex: 0;">
+            <option :value="3">3s</option>
+            <option :value="5">5s (Default)</option>
+            <option :value="10">10s</option>
+            <option :value="15">15s</option>
+            <option :value="30">30s</option>
+          </select>
+        </div>
+        <div class="field-row" style="justify-content: space-between;">
+          <button @click="queryCredits" :disabled="!isConfigValid || creditLoading">
+            {{ creditLoading ? 'Querying...' : '💰 Query Credits' }}
+          </button>
+          <span v-if="creditInfo" style="font-size: 12px;">
+            Total: <b>{{ creditInfo.totalCredit }}</b>
+            (🎁{{ creditInfo.giftCredit }} 💳{{ creditInfo.purchaseCredit }} 👑{{ creditInfo.vipCredit }})
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace Window -->
+    <div class="window">
+      <div class="title-bar">
+        <div class="title-bar-text">🎨 Jimeng Async Studio</div>
+        <div class="title-bar-controls">
+          <button aria-label="Minimize"></button>
+          <button aria-label="Maximize"></button>
+          <button aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body" style="padding: 0;">
+        <!-- Tabs -->
+        <menu role="tablist">
+          <li role="tab" :aria-selected="activeTab === 'image'" @click="activeTab = 'image'"><a href="#image">🖼️ Txt2Img</a></li>
+          <li role="tab" :aria-selected="activeTab === 'video'" @click="activeTab = 'video'"><a href="#video">🎬 Video</a></li>
+          <li role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'"><a href="#tasks">📋 Tasks ({{ stats.total }})</a></li>
+        </menu>
+
+        <!-- Image Generation Tab -->
+        <article class="tab-content" v-show="activeTab === 'image'">
+          <div class="field-row">
+            <label>Model:</label>
+            <select v-model="imageForm.model">
+              <option value="jimeng-5.0">jimeng-5.0</option>
+              <option value="jimeng-4.5">jimeng-4.5</option>
+              <option value="jimeng-4.6">jimeng-4.6</option>
+              <option value="jimeng-4.1">jimeng-4.1</option>
+              <option value="jimeng-4.0">jimeng-4.0</option>
+              <option value="jimeng-3.0">jimeng-3.0</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Ratio:</label>
+            <select v-model="imageForm.ratio">
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="21:9">21:9</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Resolution:</label>
+            <select v-model="imageForm.resolution">
+              <option value="1k">1k</option>
+              <option value="2k">2k</option>
+              <option value="4k">4k</option>
+            </select>
+          </div>
+          <div class="field-row" style="align-items: flex-start;">
+            <label>Prompt:</label>
+            <textarea v-model="imageForm.prompt" placeholder="Enter image description..."></textarea>
+          </div>
+          <button class="btn-block" @click="submitImageTask" :disabled="!isConfigValid || !imageForm.prompt || submitting">
+            {{ submitting ? 'Submitting...' : 'Generate Image' }}
+          </button>
+        </article>
+
+        <!-- Video Generation Tab -->
+        <article class="tab-content" v-show="activeTab === 'video'">
+          <div class="field-row">
+            <label>Model:</label>
+            <select v-model="videoForm.model">
+              <option value="jimeng-video-seedance-2.0-fast">seedance-2.0-fast ⚡</option>
+              <option value="jimeng-video-seedance-2.0">jimeng-video-seedance-2.0</option>
+              <option value="jimeng-video-3.5-pro">jimeng-video-3.5-pro</option>
+              <option value="jimeng-video-3.0">jimeng-video-3.0</option>
+              <option value="jimeng-video-veo3.1">jimeng-video-veo3.1</option>
+              <option value="jimeng-video-sora2">jimeng-video-sora2</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Ratio:</label>
+            <select v-model="videoForm.ratio">
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Duration (s):</label>
+            <select v-model.number="videoForm.duration">
+              <option value="4">4s</option>
+              <option value="5">5s (Default)</option>
+              <option value="8">8s</option>
+              <option value="10">10s</option>
+              <option value="12">12s</option>
+              <option value="15">15s</option>
+            </select>
+          </div>
+          <div class="field-row" style="align-items: flex-start;">
+            <label>Prompt:</label>
+            <textarea v-model="videoForm.prompt" placeholder="Enter video description..."></textarea>
+          </div>
+          <button class="btn-block" @click="submitVideoTask" :disabled="!isConfigValid || !videoForm.prompt || submitting">
+            {{ submitting ? 'Submitting...' : 'Generate Video' }}
+          </button>
+        </article>
+
+        <!-- Task Manager Tab -->
+        <article class="tab-content" v-show="activeTab === 'tasks'">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <span>
+              Auto-refresh: 
+              <span :style="{color: isPolling ? 'green' : 'gray'}">{{ isPolling ? 'ON' : 'OFF' }}</span>
+            </span>
+            <div style="display: flex; gap: 5px;">
+              <button @click="fetchTasks" :disabled="fetching">Refresh Now</button>
+              <button @click="togglePolling">{{ isPolling ? 'Stop Polling' : 'Start Polling' }}</button>
+            </div>
+          </div>
+          
+          <div class="task-list">
+            <div v-if="tasks.length === 0" style="padding: 10px; color: gray; text-align: center;">
+              No tasks found. Submit a task to see it here.
+            </div>
+            
+            <div v-for="task in tasks" :key="task.task_id" 
+                 class="task-item" 
+                 :class="{ selected: selectedTaskId === task.task_id }"
+                 @click="selectedTaskId = task.task_id">
+              <div class="task-header">
+                <span>[{{ formatType(task.type) }}] {{ formatTime(task.created_at) }} <span v-if="getElapsed(task)">({{ getElapsed(task) }})</span></span>
+                <span :class="'status-' + task.status">{{ task.status.toUpperCase() }}</span>
+              </div>
+              <div class="task-info">
+                Prompt: {{ getTaskPrompt(task) }}
+              </div>
+              <div class="progress-container" v-if="task.status === 'processing' || task.status === 'pending'">
+                <div class="progress-bar" :style="{ width: task.progress + '%' }"></div>
+                <div class="progress-text">{{ task.progress }}%</div>
+              </div>
+            </div>
+          </div>
+
+          <fieldset v-if="selectedTaskObj" style="margin-top: 10px;">
+            <legend>Task Details</legend>
+            <div style="font-size: 11px;">
+              <p style="margin: 2px 0;"><strong>ID:</strong> {{ selectedTaskObj.task_id }}</p>
+              <p style="margin: 2px 0;"><strong>Prompt:</strong> {{ selectedTaskObj.params?.prompt || 'N/A' }}</p>
+              <p style="margin: 2px 0;"><strong>Created:</strong> {{ formatDate(selectedTaskObj.created_at) }}</p>
+              <p style="margin: 2px 0;" v-if="getElapsed(selectedTaskObj)"><strong>Elapsed:</strong> {{ getElapsed(selectedTaskObj) }}</p>
+              <p style="margin: 2px 0;" v-if="selectedTaskObj.error">
+                <strong>Error:</strong> <span class="error-text">{{ selectedTaskObj.error }}</span>
+              </p>
+              <div style="margin-top: 5px; display: flex; gap: 5px;" v-if="selectedTaskObj.status === 'completed'">
+                <button @click="viewResult(selectedTaskObj)">View Result</button>
+              </div>
+            </div>
+          </fieldset>
+          
+          <div class="stats-bar">
+            <span>Total: {{ stats.total }}</span>
+            <span>| <span class="status-pending">Pending:</span> {{ stats.pending }}</span>
+            <span>| <span class="status-processing">Processing:</span> {{ stats.processing }}</span>
+            <span>| <span class="status-completed">Completed:</span> {{ stats.completed }}</span>
+            <span>| <span class="status-failed">Failed:</span> {{ stats.failed }}</span>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal-overlay" v-if="errorMsg">
+      <div class="window" style="width: 300px;">
+        <div class="title-bar">
+          <div class="title-bar-text">Error</div>
+          <div class="title-bar-controls">
+            <button aria-label="Close" @click="errorMsg = ''"></button>
+          </div>
+        </div>
+        <div class="window-body">
+          <p class="error-text" style="text-align: center; margin: 15px 0;">{{ errorMsg }}</p>
+          <div style="display: flex; justify-content: center; margin-top: 15px;">
+            <button @click="errorMsg = ''">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="modal-overlay" v-if="resultModal.show" @click.self="resultModal.show = false">
+      <div class="window modal-window" @click.stop>
+        <div class="title-bar">
+          <div class="title-bar-text">Media Viewer.exe - {{ resultModal.task?.task_id.substring(0,8) }}</div>
+          <div class="title-bar-controls">
+            <button aria-label="Close" @click="resultModal.show = false"></button>
+          </div>
+        </div>
+        <div class="window-body modal-body">
+          
+          <div style="position: relative; min-height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="loading-overlay" v-if="resultModal.loading">
+              <p style="margin-bottom: 5px;">Loading Media...</p>
+              <div class="win-progress-bar">
+                <div class="win-progress-chunk" v-for="n in 15" :key="n" v-show="loadingProgress >= n * (100/15)"></div>
+              </div>
+            </div>
+
+            <div v-if="resultModal.urls.length > 0" :style="{visibility: resultModal.loading ? 'hidden' : 'visible', width: '100%'}">
+              <template v-if="resultModal.type.includes('video')">
+                <video :src="resultModal.urls[0]" controls autoplay loop class="preview-media" 
+                       @loadeddata="onMediaLoaded" @error="onMediaLoaded"></video>
+              </template>
+              <template v-else>
+                <img :src="resultModal.urls[resultModal.currentIndex]" class="preview-media" 
+                     @load="onMediaLoaded" @error="onMediaLoaded">
+              </template>
+            </div>
+            <div v-else-if="!resultModal.loading">
+              No valid media URLs found.
+            </div>
+          </div>
+          
+          <div v-if="resultModal.urls.length > 1" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px;">
+            <button :disabled="resultModal.currentIndex === 0" @click="resultModal.currentIndex--">&lt; Prev</button>
+            <span>{{ resultModal.currentIndex + 1 }} / {{ resultModal.urls.length }}</span>
+            <button :disabled="resultModal.currentIndex === resultModal.urls.length - 1" @click="resultModal.currentIndex++">Next &gt;</button>
+          </div>
+
+          <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+            <button @click="copyUrl" v-if="resultModal.urls.length > 0">Copy URL</button>
+            <button @click="openOriginal" v-if="resultModal.urls.length > 0">Open Original</button>
+            <button @click="resultModal.show = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
+
+    // ===== IndexedDB Media Cache =====
+    const MediaCache = (() => {
+      const DB_NAME = 'jm_media_cache';
+      const DB_VERSION = 1;
+      const STORE_NAME = 'blobs';
+
+      function openDB() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              db.createObjectStore(STORE_NAME, { keyPath: 'url' });
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+
+      return {
+        async put(url, blob, meta = {}) {
+          const db = await openDB();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).put({ url, blob, ...meta, cachedAt: Date.now() });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        },
+        async get(url) {
+          const db = await openDB();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const req = tx.objectStore(STORE_NAME).get(url);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+          });
+
+        },
+        async getObjectURL(url) {
+          const entry = await this.get(url);
+          if (entry && entry.blob) return URL.createObjectURL(entry.blob);
+          return null;
+        },
+        async cacheFromURL(url) {
+          try {
+            if (await this.get(url)) return;
+            const resp = await fetch(url);
+            if (!resp.ok) return;
+            const blob = await resp.blob();
+            await this.put(url, blob, { type: blob.type, size: blob.size });
+          } catch (e) {
+            console.warn('MediaCache: failed to cache', url, e);
+          }
+        }
+      };
+    })();
+
+    createApp({
+      setup() {
+        // State
+        const config = reactive({
+          apiUrl: 'http://localhost:5100',
+          sessionToken: '',
+          pollInterval: 5
+        });
+        
+        const activeTab = ref('image');
+        const submitting = ref(false);
+        const fetching = ref(false);
+        const isPolling = ref(false);
+        const errorMsg = ref('');
+        let pollInterval = null;
+        const loadingProgress = ref(0);
+        let loadingInterval = null;
+
+        // Forms
+        const imageForm = reactive({
+          model: 'jimeng-5.0',
+          ratio: '1:1',
+          resolution: '2k',
+          prompt: ''
+        });
+
+        const videoForm = reactive({
+          model: 'jimeng-video-seedance-2.0-fast',
+          ratio: '16:9',
+          duration: 5,
+          prompt: ''
+        });
+
+        // Tasks
+        const tasks = ref(JSON.parse(localStorage.getItem('jm_local_tasks') || '[]'));
+        const stats = ref({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
+        const selectedTaskId = ref(null);
+        
+        // Modal
+        const resultModal = reactive({
+          show: false,
+          task: null,
+          type: '',
+          urls: [],
+          _originalUrls: [],
+          currentIndex: 0,
+          loading: false
+        });
+
+        // Computed
+        const isConfigValid = computed(() => {
+          return config.apiUrl.trim() !== '' && config.sessionToken.trim() !== '';
+        });
+
+        const selectedTaskObj = computed(() => {
+          if (!selectedTaskId.value) return null;
+          return tasks.value.find(t => t.task_id === selectedTaskId.value) || null;
+        });
+
+        // Axios helper
+        const getApi = () => {
+          return axios.create({
+            baseURL: config.apiUrl.trim().replace(/\/$/, ''),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${config.sessionToken.trim()}`
+            }
+          });
+        };
+
+        const showError = (msg) => {
+          errorMsg.value = msg;
+        };
+
+        // Methods
+        const submitImageTask = async () => {
+          if (!isConfigValid.value) return showError('Please configure API URL and Session Token first.');
+          submitting.value = true;
+          try {
+            const api = getApi();
+            const res = await api.post('/v1/async/images/generations', imageForm);
+            if (res.data && res.data.task_id) {
+              activeTab.value = 'tasks';
+              fetchTasks();
+              if (!isPolling.value) togglePolling();
+              queryCredits();
+            }
+          } catch (err) {
+            showError('Submit failed: ' + (err.response?.data?.message || err.message));
+          } finally {
+            submitting.value = false;
+          }
+        };
+
+        const submitVideoTask = async () => {
+          if (!isConfigValid.value) return showError('Please configure API URL and Session Token first.');
+          submitting.value = true;
+          try {
+            const api = getApi();
+            const payload = { ...videoForm, duration: parseInt(videoForm.duration) };
+            const res = await api.post('/v1/async/videos/generations', payload);
+            if (res.data && res.data.task_id) {
+              activeTab.value = 'tasks';
+              fetchTasks();
+              if (!isPolling.value) togglePolling();
+              queryCredits();
+            }
+          } catch (err) {
+            showError('Submit failed: ' + (err.response?.data?.message || err.message));
+          } finally {
+            submitting.value = false;
+          }
+        };
+
+        const fetchTasks = async () => {
+          if (!isConfigValid.value || fetching.value) return;
+          fetching.value = true;
+          try {
+            const api = getApi();
+            const res = await api.get('/v1/async/tasks');
+            if (res.data) {
+              const serverTasks = res.data.tasks || [];
+              
+              // Merge logic: Update existing tasks with server data, keep local-only tasks (history)
+              const taskMap = new Map(tasks.value.map(t => [t.task_id, t]));
+              serverTasks.forEach(st => {
+                const oldTask = taskMap.get(st.task_id);
+const wasNotComplete = !oldTask || oldTask.status !== 'completed';
+                taskMap.set(st.task_id, st);
+                if (wasNotComplete && st.status === 'completed' && st.result?.data) {
+                  st.result.data.forEach(item => { if (item.url) MediaCache.cacheFromURL(item.url); });
+                }
+              });
+              
+              // Convert back to array and sort by created_at desc
+              tasks.value = Array.from(taskMap.values()).sort((a, b) => b.created_at - a.created_at);
+              
+              // Update stats based on merged list (or trust server stats for active ones? Let's calc from local view for consistency or keep server stats for debugging)
+              // Better to calculate stats from our merged view to match what user sees
+              stats.value = {
+                total: tasks.value.length,
+                pending: tasks.value.filter(t => t.status === 'pending').length,
+                processing: tasks.value.filter(t => t.status === 'processing').length,
+                completed: tasks.value.filter(t => t.status === 'completed').length,
+                failed: tasks.value.filter(t => t.status === 'failed').length
+              };
+              
+              // Automatically stop polling if all tasks are done
+              if (isPolling.value && stats.value.pending === 0 && stats.value.processing === 0 && tasks.value.length > 0) {
+                togglePolling();
+              }
+            }
+          } catch (err) {
+            console.error('Fetch tasks failed', err);
+            if (isPolling.value) togglePolling();
+            showError('Fetch tasks failed: ' + (err.response?.data?.message || err.message));
+          } finally {
+            fetching.value = false;
+          }
+        };
+
+        const togglePolling = () => {
+          if (isPolling.value) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            isPolling.value = false;
+          } else {
+            fetchTasks(); // fetch immediately
+            pollInterval = setInterval(fetchTasks, (config.pollInterval || 5) * 1000);
+            isPolling.value = true;
+          }
+        };
+
+        const queryCredits = async () => {
+          if (!isConfigValid.value) return;
+          creditLoading.value = true;
+          try {
+            const api = getApi();
+            const res = await api.post('/token/points');
+            if (Array.isArray(res.data) && res.data.length > 0) {
+              if (res.data.length === 1) creditInfo.value = res.data[0].points;
+              else creditInfo.value = res.data.reduce((acc, item) => ({
+                giftCredit: acc.giftCredit + item.points.giftCredit,
+                purchaseCredit: acc.purchaseCredit + item.points.purchaseCredit,
+                vipCredit: acc.vipCredit + item.points.vipCredit,
+                totalCredit: acc.totalCredit + item.points.totalCredit,
+              }), { giftCredit: 0, purchaseCredit: 0, vipCredit: 0, totalCredit: 0 });
+            }
+          } catch (err) {
+            showError('Query credits failed: ' + (err.response?.data?.message || err.message));
+          } finally {
+            creditLoading.value = false;
+          }
+        };
+
+        const viewResult = async (task) => {
+          if (!task.result?.data) {
+            showError('No result data found.');
+            return;
+          }
+          const urls = task.result.data.map(item => item.url).filter(Boolean);
+          if (urls.length === 0) {
+            showError('No valid URLs found.');
+            return;
+          }
+          
+          resultModal.task = task;
+          resultModal.type = task.type;
+          resultModal._originalUrls = urls;
+          const resolvedUrls = await Promise.all(urls.map(async (url) => {
+            const localUrl = await MediaCache.getObjectURL(url);
+            return localUrl || url;
+          }));
+          resultModal.urls = resolvedUrls;
+          resultModal.currentIndex = 0;
+          resultModal.loading = false;
+          resultModal.show = true;
+          startLoading();
+        };
+
+        const startLoading = () => {
+          resultModal.loading = true;
+          loadingProgress.value = 0;
+          if (loadingInterval) clearInterval(loadingInterval);
+          loadingInterval = setInterval(() => {
+            if (loadingProgress.value < 90) loadingProgress.value += 10;
+          }, 150);
+        };
+
+        const onMediaLoaded = () => {
+          loadingProgress.value = 100;
+          setTimeout(() => {
+            resultModal.loading = false;
+            if (loadingInterval) clearInterval(loadingInterval);
+          }, 300);
+        };
+
+        watch(() => resultModal.currentIndex, () => {
+          if (resultModal.show) startLoading();
+        });
+
+        watch(() => resultModal.show, (val) => {
+          if (!val) {
+            resultModal.urls.forEach(u => { if (u.startsWith('blob:')) URL.revokeObjectURL(u); });
+          }
+        });
+
+        const copyUrl = () => {
+          const url = resultModal._originalUrls[resultModal.currentIndex];
+          navigator.clipboard.writeText(url).then(() => {
+            alert('URL copied to clipboard!');
+          }).catch(err => {
+            console.error('Copy failed: ', err);
+            prompt('Copy this URL:', url);
+          });
+        };
+
+        const openOriginal = () => {
+          const url = resultModal._originalUrls[resultModal.currentIndex];
+          window.open(url, '_blank');
+        };
+
+        const formatTime = (timestamp) => {
+          if (!timestamp) return '';
+          const date = new Date(timestamp * 1000);
+          return date.toLocaleTimeString();
+        };
+        
+        const formatDate = (timestamp) => {
+          if (!timestamp) return '';
+          const date = new Date(timestamp * 1000);
+          return date.toLocaleString();
+        };
+
+        const formatType = (type) => {
+          if (type === 'image_generation') return 'IMG';
+          if (type === 'image_composition') return 'I2I';
+          if (type === 'video_generation') return 'VID';
+          return type;
+        };
+
+        const getElapsed = (task) => {
+          if (!task.created_at) return '';
+          const start = task.created_at;
+          let end;
+          if (task.status === 'completed' || task.status === 'failed') {
+            end = task.completed_at || task.updated_at || start;
+          } else {
+            end = Math.floor(Date.now() / 1000);
+          }
+          const diff = Math.max(0, end - start);
+          if (diff < 60) return `${diff}s`;
+          const m = Math.floor(diff / 60);
+          const s = diff % 60;
+          if (m < 60) return `${m}m${s}s`;
+          return `${Math.floor(m / 60)}h${m % 60}m`;
+        };
+
+        const getTaskPrompt = (task) => {
+          if (!task.params) return 'N/A';
+          let prompt = task.params.prompt || '';
+          if (prompt.length > 50) prompt = prompt.substring(0, 50) + '...';
+          return prompt;
+        };
+
+        // Lifecycle
+        onMounted(() => {
+          // Load config
+          const savedUrl = localStorage.getItem('jm_api_url');
+          const savedToken = localStorage.getItem('jm_session_token');
+          const savedPoll = localStorage.getItem('jm_poll_interval');
+          if (savedUrl) config.apiUrl = savedUrl;
+          if (savedToken) config.sessionToken = savedToken;
+          if (savedPoll) config.pollInterval = parseInt(savedPoll) || 5;
+          
+          if (isConfigValid.value) {
+            fetchTasks();
+            togglePolling(); // start polling automatically
+          }
+        });
+
+        onUnmounted(() => {
+          if (pollInterval) clearInterval(pollInterval);
+        });
+
+        // Watchers
+        watch(() => config.apiUrl, (val) => localStorage.setItem('jm_api_url', val));
+        watch(() => config.sessionToken, (val) => localStorage.setItem('jm_session_token', val));
+        watch(tasks, (val) => localStorage.setItem('jm_local_tasks', JSON.stringify(val)), { deep: true });
+        watch(() => config.pollInterval, (val) => {
+          localStorage.setItem('jm_poll_interval', val);
+          if (isPolling.value) {
+            clearInterval(pollInterval);
+            pollInterval = setInterval(fetchTasks, (val || 5) * 1000);
+          }
+        });
+
+        // Credits
+        const creditInfo = ref(null);
+        const creditLoading = ref(false);
+
+        return {
+          config, isConfigValid, activeTab, imageForm, videoForm,
+          tasks, stats, selectedTaskId, selectedTaskObj,
+          resultModal, errorMsg, submitting, fetching, isPolling,
+          submitImageTask, submitVideoTask, fetchTasks, togglePolling, viewResult, queryCredits, creditInfo, creditLoading,
+          copyUrl, openOriginal, formatTime, formatDate, formatType, getTaskPrompt, getElapsed,
+          loadingProgress, onMediaLoaded
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
