@@ -2,6 +2,8 @@
 
 A standalone Windows 98/2000 style web UI for the [jimeng-api](https://github.com/iptag/jimeng-api) asynchronous task system.
 
+🌟 **Live Demo**: [https://moeblack.github.io/jimeng-async-ui/](https://moeblack.github.io/jimeng-async-ui/)
+
 ## ✨ Features
 - **Retro Aesthetic**: Meticulously designed using `98.css` to emulate the classic Windows 2000 look and feel.
 - **Pure Frontend**: A single `index.html` file with no build step required. Uses Vue 3 and Axios via CDN.
