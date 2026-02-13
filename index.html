@@ -391,12 +391,29 @@
               <option value="4k">4k</option>
             </select>
           </div>
+          <fieldset style="margin-bottom: 8px;">
+            <legend>📎 Reference Images (Optional)</legend>
+            <div class="field-row">
+              <label>Images (≤10):</label>
+              <span style="flex:1;"></span>
+              <button @click="$refs.imgRefInput.click()">Browse...</button>
+              <input type="file" ref="imgRefInput" accept="image/*" multiple @change="onImageRefFiles($event)" style="display:none;">
+            </div>
+            <div class="file-list" v-if="imageForm.refImages.length">
+              <div v-for="(f, i) in imageForm.refImages" :key="i" class="file-tag">
+                &#128444;&#65039; {{ f.name }} <button @click="removeImageRef(i)">&times;</button>
+              </div>
+            </div>
+            <p style="font-size:10px; color:#808080; margin-top:5px; margin-bottom: 2px;">
+              💡 Upload reference images to switch to Img2Img (composition) mode.
+            </p>
+          </fieldset>
           <div class="field-row" style="align-items: flex-start;">
             <label>Prompt:</label>
             <textarea v-model="imageForm.prompt" placeholder="Enter image description..."></textarea>
           </div>
           <button class="btn-block" @click="submitImageTask" :disabled="!isConfigValid || !imageForm.prompt || submitting">
-            {{ submitting ? 'Submitting...' : 'Generate Image' }}
+            {{ submitting ? 'Submitting...' : (imageForm.refImages.length > 0 ? 'Img2Img Compose' : 'Generate Image') }}
           </button>
         </article>
 
@@ -785,7 +802,8 @@
           model: 'jimeng-5.0',
           ratio: '1:1',
           resolution: '2k',
-          prompt: ''
+          prompt: '',
+          refImages: []
         });
 
         const videoForm = reactive({
@@ -843,6 +861,13 @@
         };
 
         // File Handlers
+        const onImageRefFiles = (e) => {
+          const files = Array.from(e.target.files);
+          imageForm.refImages.push(...files.slice(0, Math.max(0, 10 - imageForm.refImages.length)));
+          e.target.value = '';
+        };
+        const removeImageRef = (i) => imageForm.refImages.splice(i, 1);
+
         const onStandardFiles = (e) => {
           const files = Array.from(e.target.files);
           videoForm.standardFiles = files.slice(0, 2);
@@ -882,8 +907,29 @@
           submitting.value = true;
           try {
             const api = getApi();
-            const res = await api.post('/v1/async/images/generations', imageForm);
+            let res;
+            const hasRefImages = imageForm.refImages.length > 0;
+
+            if (hasRefImages) {
+              // Img2Img: use compositions endpoint
+              const fd = new FormData();
+              fd.append('prompt', imageForm.prompt);
+              fd.append('model', imageForm.model);
+              fd.append('ratio', imageForm.ratio);
+              fd.append('resolution', imageForm.resolution);
+              imageForm.refImages.forEach(f => fd.append('images', f));
+              res = await api.post('/v1/async/images/compositions', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            } else {
+              // Txt2Img: use generations endpoint
+              res = await api.post('/v1/async/images/generations', imageForm);
+            }
+
             if (res.data && res.data.task_id) {
+              if (hasRefImages) {
+                const refFiles = imageForm.refImages.map((f, i) => ({ name: f.name, type: f.type, fieldName: `image_${i+1}`, blob: f }));
+                MediaCache.putRef(res.data.task_id, refFiles).catch(e => console.error(e));
+                imageForm.refImages = [];
+              }
               activeTab.value = 'tasks';
               fetchTasks();
               if (!isPolling.value) togglePolling();
@@ -1244,7 +1290,7 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
           tasks, stats, selectedTaskId, selectedRefFiles, selectedTaskObj,
           resultModal, errorMsg, submitting, fetching, isPolling,
           submitImageTask, submitVideoTask, fetchTasks, togglePolling, viewResult, queryCredits, creditInfo, creditLoading,
-          onStandardFiles, removeStandardFile, onOmniImages, removeOmniImage, onOmniVideos, removeOmniVideo, onOmniAudios, removeOmniAudios,
+          onImageRefFiles, removeImageRef, onStandardFiles, removeStandardFile, onOmniImages, removeOmniImage, onOmniVideos, removeOmniVideo, onOmniAudios, removeOmniAudios,
           copyUrl, openOriginal, formatTime, openRefPreview, formatDate, formatType, getTaskPrompt, getElapsed, getFakeProgress, deleteTask,
           loadingProgress, onMediaLoaded
         };
