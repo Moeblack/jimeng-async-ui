@@ -933,12 +933,14 @@ const wasNotComplete = !oldTask || oldTask.status !== 'completed';
         };
 
         const getFakeProgress = (task) => {
-          if (task.progress > 0 && task.progress < 100) return task.progress.toFixed(1);
           const start = task.created_at;
           const elapsed = currentTime.value - start;
           if (elapsed <= 0) return '0.0';
           const target = task.type.includes('video') ? 300 : 30; // 5 mins for video, 30s for image
-          let percent = (elapsed / target) * 100;
+          let percent = (elapsed / target) * 99.9;
+          // Use whichever is higher: server progress or time-based estimate
+          const serverProgress = (task.progress > 0 && task.progress < 100) ? task.progress : 0;
+          percent = Math.max(percent, serverProgress);
           if (percent >= 99.9) percent = 99.9;
           return percent.toFixed(1);
         };
