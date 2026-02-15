@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Jimeng API - Async Console</title>
   
   <!-- 98.css for Windows 98/2000 style UI -->
@@ -854,6 +857,16 @@
     const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
 
     // ===== IndexedDB Media Cache =====
+
+    // Unregister any old service workers that might be caching the previous version
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister();
+          console.log('Unregistered old service worker:', registration);
+        }
+      });
+    }
     const MediaCache = (() => {
       const DB_NAME = 'jm_media_cache';
       const DB_VERSION = 2;
